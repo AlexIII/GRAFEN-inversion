@@ -17,7 +17,7 @@ dStream = sys.stdout
 
 def __log(msg, noNl = False):
 	if dStream is not None:
-		dStream.write("prog: " + msg + ("" if noNl else "\r\n"))
+		dStream.write(msg + ("" if noNl else "\r\n"))
 		dStream.flush()
 
 def waitForCompletion(proc):
@@ -29,11 +29,11 @@ def waitForCompletion(proc):
 			raise ChildProcessError("process " + str(proc.pid) + " exited with code " + str(rCode))
 		line = proc.stdout.readline().strip('\r\n')
 		if line:
-			__log("proc: "+line)
+			__log("P: "+line)
 
 # Run GRAFEN
 def runSphSolver(path, params):
-	proc = subprocess.Popen([path+"mpirun.cmd", "elFieldCU_GKed_het_91_df.exe"]+params,
+	proc = subprocess.Popen([path+"mpirun.sh", "../GRAFEN/src/grafen_rocm"]+params,
 		cwd=path,
 		stdin=subprocess.PIPE,
 		stdout=subprocess.PIPE,
@@ -101,7 +101,7 @@ def mapGridsIndexed(dir, fun):
 	return res
 
 def mapGrids(dir, fun):
-	mapGridsIndexed(dir, lambda g, i: fun(g))
+	return mapGridsIndexed(dir, lambda g, i: fun(g))
 
 def scalGridsWf(dir1, dir2, fun, noWrite = False):
 	f1 = files(dir1, '.grd')
@@ -125,14 +125,17 @@ def scalGridsInDir(dir1, dir2):
 		sum += np.dot(g1.data.flatten(), g2.data.flatten())
 	return sum
 
-def Aop(path, modelDir, resultDir, gamma = None, w = None):
+def Aop(path, modelDir, resultDir, w = None, l0 = 60):
 	tempFieldDir = "tmpField/"
 	tempFieldFname = tempFieldDir+"fieldTemp.grd"
 	layers = len(files(modelDir, '.grd'))
+
+	topoHeights = "geoid+etopo_positive_ext10_km.grd"
+
 	params = (lambda isTrans:
-		["-grd7", tempFieldFname, "-Hf", "0.00001", "-Hfrom", str(-layers), "-Hto", "0", "-Hn", str(layers), "-l0", "57", "-dens", resultDir, "-DPR", "180", "-transposeSolver"]
+		["-grd7", tempFieldFname, "-Hf", "0.00001", "-Hfrom", str(-layers + 1), "-Hto", "0", "-Hn", str(layers), "-l0", str(l0), "-dens", resultDir, "-DPR", "140", "-toRel", "-topoHeightGrd7", topoHeights, "-transposeSolver"]
 		if isTrans else 
-		["-grd7", tempFieldFname, "-Hf", "0.00001", "-Hfrom", str(-layers), "-Hto", "0", "-Hn", str(layers), "-l0", "57", "-dens", modelDir, "-DPR", "180"]
+		["-grd7", tempFieldFname, "-Hf", "0.00001", "-Hfrom", str(-layers + 1), "-Hto", "0", "-Hn", str(layers), "-l0", str(l0), "-dens", modelDir, "-DPR", "140", "-toRel", "-topoHeightGrd7", topoHeights]
 		)
 
 	rmtree(path+resultDir, ignore_errors = True)
@@ -147,12 +150,9 @@ def Aop(path, modelDir, resultDir, gamma = None, w = None):
 	#trans
 	runSphSolver(path, params(True))
 	#FFtx + gm*x
-	if gamma != None:
-		sumGridsInDir(path+resultDir, path+modelDir, gamma)
-	else:
-		sumGridsInDirWeighted(path+resultDir, path+modelDir, w)
+	sumGridsInDirWeighted(path+resultDir, path+modelDir, w)
 
-def AopFlat(path, modelDir, resultDir, gamma = None, w = None):
+def AopFlat(path, modelDir, resultDir, w = None):
 	topLayerZ = 0
 	tempFieldDir = "tmpField/"
 	tempFieldFname = tempFieldDir+"fieldTemp.grd"
@@ -178,10 +178,7 @@ def AopFlat(path, modelDir, resultDir, gamma = None, w = None):
 	#trans
 	runFlatSolver(path, params(True))
 	#FFtx + gm*x
-	if gamma != None:
-		sumGridsInDir(path+resultDir, path+modelDir, gamma)
-	else:
-		sumGridsInDirWeighted(path+resultDir, path+modelDir, w)
+	sumGridsInDirWeighted(path+resultDir, path+modelDir, w)
 
 def test():
 	path = "X:\\elFieldCU_GKed_het_91_df_hex_2phase_fix_pool\\x64\\minRefine_TimanHD_ds_flat\\"
