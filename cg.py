@@ -48,6 +48,11 @@ class Solver(object):
 			Aop.mapGridsIndexed(self.path+self.x, (lambda gd, i: np.ones(gd.data.shape)*self.gamma[i] ))
 		)
 
+		#top layer spec. gamma weights (based on the height map)
+		g_spec_top_layer_grd = "geoid+etopo_positive_ext10_km.grd"
+		g_spec_top_layer_map = lambda x: (1.4 - (0 if x >= Grid.BlankValue else x))**4*20000 + 50
+		self.gammaWeights[len(self.gammaWeights) - 1] = np.array([g_spec_top_layer_map(v) for v in Grid().read_grd7(g_spec_top_layer_grd).data])
+
 		#process dirs
 		self.zDir = "zDir"	#z_k-1
 		self.rDir = "rDir"	#r_k-1
@@ -220,11 +225,7 @@ def searchGamma():
 
 #attempt(makeDistr(50, 800, 81))
 
-#attempt(np.interp(range(82), [0, 1, 2, 70, 81], [300, 200, 100, 100, 100], True).tolist())
-
-
-#attempt(np.interp(range(82), [0, 82], [1000, 10], False).tolist()) #the best choice
-attempt(np.interp(range(82), [0, 1, 2, 80], [10001, 2000, 500, 10], True).tolist()) #the best choice
+attempt(np.interp(range(82), [0, 82], [21, 600], False).tolist()) #the best choice
 
 
 #printStat("gm=100-600_e=0.00228838_me=0.0331472_it=36")

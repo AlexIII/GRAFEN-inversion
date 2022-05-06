@@ -236,7 +236,7 @@ class Grid(object):
         if n != 0: return s/float(n)
         else: return None
 
-    def read_grd7(self, filename: str):
+    def read_grd7(self, filename: str) -> "Grid":
         with open(filename, "rb") as f:
             fend = f.seek(0,2)
             f.seek(0,0)
