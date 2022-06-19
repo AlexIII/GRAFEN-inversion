@@ -4,6 +4,7 @@
 # MIT License
 
 import numpy as np
+import numpy.typing as npt
 from math import fabs
 from struct import Struct, pack
 
@@ -18,6 +19,7 @@ class Grid(object):
     parser_4write = Struct("<7i8dii")
     BlankValueBin = pack("<d", BlankValue)
     Eps4FloatCompare = 1.0e-10
+    data: npt.NDArray
     
     def __init__(self, xnum=2, ynum=2, xmin=0.0, ymin=0.0, dx=1.0, dy=1.0, zmin=0.0, zmax=0.0, BlankValue=1.70141e+038):
         self.ynum = ynum

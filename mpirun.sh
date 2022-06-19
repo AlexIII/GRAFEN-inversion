@@ -1,2 +1,2 @@
 #!/bin/bash
-mpiexec.mpich -l -machinefile hosts.txt ${@:1}
+mpiexec.mpich -l -machinefile `dirname "$0"`/hosts.txt ${@:1}

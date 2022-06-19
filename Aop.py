@@ -4,36 +4,47 @@
 # https://github.com/AlexIII
 # MIT License
 
+from typing import *
 import subprocess
 from shutil import copyfile
 from shutil import copytree
 from shutil import rmtree
 from pygrid import Grid
-import sys
-import os
+import sys, os
 import numpy as np
+import numpy.typing as npt
+from typing import *
 
 dStream = sys.stdout
 
-def __log(msg, noNl = False):
+def __log(msg, noNl = False) -> None:
 	if dStream is not None:
 		dStream.write(msg + ("" if noNl else "\r\n"))
 		dStream.flush()
 
-def waitForCompletion(proc):
+def waitForCompletion(proc: subprocess.Popen) -> None:
 	while True:
 		rCode = proc.poll()
 		if rCode != None:
 			if rCode == 0:
 				break
 			raise ChildProcessError("process " + str(proc.pid) + " exited with code " + str(rCode))
-		line = proc.stdout.readline().strip('\r\n')
-		if line:
-			__log("P: "+line)
+		while True:
+			# stdout
+			stdoutLine = proc.stdout.readline()		# blocking
+			line = stdoutLine.strip('\r\n')
+			if line: __log("P: " + line)
+			if not stdoutLine: break
+			# stderr
+			# stderrLine = proc.stderr.readline()
+			# line = stderrLine.strip('\r\n')
+			# if line: __log("E: " + line)
+			# if not stdoutLine and not stderrLine: break
 
 # Run GRAFEN
-def runSphSolver(path, params):
-	proc = subprocess.Popen([path+"mpirun.sh", "../GRAFEN/src/grafen_rocm"]+params,
+def runSphSolver(path: str, params: List[str]) -> None:
+	print(' '.join(["../mpirun.sh", "../../GRAFEN/src/grafen_rocm"] + params))
+	proc = subprocess.Popen(["../mpirun.sh", "../../GRAFEN/src/grafen_rocm"] + params,
 		cwd=path,
 		stdin=subprocess.PIPE,
 		stdout=subprocess.PIPE,
@@ -43,7 +54,7 @@ def runSphSolver(path, params):
 	waitForCompletion(proc)
 
 # Run 'flat' forward gravity solver 
-def runFlatSolver(path, params):
+def runFlatSolver(path: str, params: List[str]) -> None:
 	proc = subprocess.Popen([path+"gravcalcN_cuda92.exe"]+params,	
 		cwd=path,
 		stdin=subprocess.PIPE,
@@ -53,13 +64,13 @@ def runFlatSolver(path, params):
 		bufsize=0)
 	waitForCompletion(proc)
 
-def files(mypath, ext = None, revSort = False):
-    fs = [str(os.path.join(mypath, f)) for f in os.listdir(mypath) if os.path.isfile(os.path.join(mypath, f)) and (not ext or os.path.splitext(f)[1] == ext)]
-    fs.sort(reverse=revSort)
+def files(path: str, extention: str = None, reverseSort: bool = False) -> List[str]:
+    fs = [str(os.path.join(path, f)) for f in os.listdir(path) if os.path.isfile(os.path.join(path, f)) and (not extention or os.path.splitext(f)[1] == extention)]
+    fs.sort(reverse=reverseSort)
     return fs
 
-#dir1 = alpha*dir1 + betta*dir2, betta may be an array
-def sumGridsInDir(dir1, dir2, betta = 1, alpha = 1):
+#dir1 = alpha*dir1 + betta*dir2, betta may be a list
+def sumGridsInDir(dir1: str, dir2: str, betta: Union[float, List[float]] = 1, alpha = 1) -> None:
 	f1 = files(dir1, '.grd')
 	f2 = files(dir2, '.grd')
 	if not isinstance(betta, list):
@@ -70,28 +81,19 @@ def sumGridsInDir(dir1, dir2, betta = 1, alpha = 1):
 		g.data = alpha*g.data + betta[i]*Grid().read_grd7(f2[i]).data
 		g.write_grd7(f1[i])
 
-def sumGridsInDirWeighted(dir1, dir2, w):
-	f1 = files(dir1, '.grd')
-	f2 = files(dir2, '.grd')
-	assert len(f1) == len(f2) and len(f1) == len(w)
-	for i in range(len(f1)):
-		g = Grid().read_grd7(f1[i])
-		g.data = g.data + w[i]*Grid().read_grd7(f2[i]).data
-		g.write_grd7(f1[i])
-
-def mulGrids(dir, gamma):
+def mulGrids(dir: str, gamma: float) -> None:
 	for f in files(dir, '.grd'):
 		g = Grid().read_grd7(f)
 		g.data *= gamma
 		g.write_grd7(f)
 
-def setGrids(dir, v):
+def setGrids(dir: str, v: float) -> None:
 	for f in files(dir, '.grd'):
 		g = Grid().read_grd7(f)
 		g.data.fill(v)
 		g.write_grd7(f)
 
-def mapGridsIndexed(dir, fun):
+def mapGridsIndexed(dir: str, fun: Callable[[npt.NDArray, int], npt.NDArray]) -> List[npt.NDArray]:
 	res = []
 	i = 0
 	for f in files(dir, '.grd'):
@@ -100,10 +102,10 @@ def mapGridsIndexed(dir, fun):
 		i += 1
 	return res
 
-def mapGrids(dir, fun):
-	return mapGridsIndexed(dir, lambda g, i: fun(g))
+def mapGrids(dir: str, fun: Callable[[npt.NDArray], npt.NDArray]) -> List[npt.NDArray]:
+	return mapGridsIndexed(dir, lambda g, _: fun(g))
 
-def scalGridsWf(dir1, dir2, fun, noWrite = False):
+def transformGridsInDir(dir1: str, dir2: str, fun: Callable[[npt.NDArray, npt.NDArray], npt.NDArray], noWrite = False) -> None:
 	f1 = files(dir1, '.grd')
 	f2 = files(dir2, '.grd')
 	assert len(f1) == len(f2)
@@ -114,7 +116,7 @@ def scalGridsWf(dir1, dir2, fun, noWrite = False):
 		if not noWrite:
 			g1.write_grd7(f1[i])
 
-def scalGridsInDir(dir1, dir2):
+def dotGridsInDir(dir1: str, dir2: str) -> float:
 	f1 = files(dir1, '.grd')
 	f2 = files(dir2, '.grd')
 	assert len(f1) == len(f2)
@@ -125,67 +127,27 @@ def scalGridsInDir(dir1, dir2):
 		sum += np.dot(g1.data.flatten(), g2.data.flatten())
 	return sum
 
-def Aop(path, modelDir, resultDir, w = None, l0 = 60):
-	tempFieldDir = "tmpField/"
-	tempFieldFname = tempFieldDir+"fieldTemp.grd"
-	layers = len(files(modelDir, '.grd'))
+def SolveFwd(path: str, fieldFname: str, modelDir: str, topoGrd: Optional[str] = None, l0: float = 60, pprr: float = 100):	# pprr - Point Potential Replace Radius
+	layers = len(files(os.path.join(path, modelDir), '.grd')) - (1 if topoGrd is not None else 0)
+	runSphSolver(path, 
+		["-grd7", fieldFname, "-Hf", "0.00001", "-Hfrom", str(-layers), "-Hto", "0", "-Hn", str(layers), "-l0", str(l0), "-dens", modelDir, "-DPR", str(pprr), "-toRel"] + 
+		(["-fieldOnTopo", "-topoHeightGrd7", topoGrd] if topoGrd is not None else [])
+	)
 
-	topoHeights = "geoid+etopo_positive_ext10_km.grd"
+def SolveTrans(path: str, fieldFname: str, modelDir: str, topoGrd: Optional[str] = None, l0: float = 60, pprr: float = 100):	# pprr - Point Potential Replace Radius
+	layers = len(files(os.path.join(path, modelDir), '.grd')) - (1 if topoGrd is not None else 0)
+	runSphSolver(path,
+		["-grd7", fieldFname, "-Hf", "0.00001", "-Hfrom", str(-layers), "-Hto", "0", "-Hn", str(layers), "-l0", str(l0), "-dens", modelDir, "-DPR", str(pprr), "-toRel", "-transposeSolver"] + 
+		(["-fieldOnTopo", "-topoHeightGrd7", topoGrd] if topoGrd is not None else [])
+	)
 
-	params = (lambda isTrans:
-		["-grd7", tempFieldFname, "-Hf", "0.00001", "-Hfrom", str(-layers + 1), "-Hto", "0", "-Hn", str(layers), "-l0", str(l0), "-dens", resultDir, "-DPR", "140", "-toRel", "-topoHeightGrd7", topoHeights, "-transposeSolver"]
-		if isTrans else 
-		["-grd7", tempFieldFname, "-Hf", "0.00001", "-Hfrom", str(-layers + 1), "-Hto", "0", "-Hn", str(layers), "-l0", str(l0), "-dens", modelDir, "-DPR", "140", "-toRel", "-topoHeightGrd7", topoHeights]
-		)
-
-	rmtree(path+resultDir, ignore_errors = True)
-	copytree(path+modelDir, path+resultDir)
-	try:
-		os.mkdir(path+resultDir)
-	except OSError:
-		None
+def Aop(path: str, outFwdFieldGrd: str, modelDir: str, topoGrd: str, resultDir: str, layerWeights: List[float], l0: float, pprr: float):
+	rmtree(os.path.join(path, resultDir), ignore_errors = True)
+	copytree(os.path.join(path, modelDir), os.path.join(path, resultDir))
 
 	#fwd
-	runSphSolver(path, params(False))
+	SolveFwd(path, outFwdFieldGrd, modelDir, topoGrd, l0, pprr)
 	#trans
-	runSphSolver(path, params(True))
-	#FFtx + gm*x
-	sumGridsInDirWeighted(path+resultDir, path+modelDir, w)
-
-def AopFlat(path, modelDir, resultDir, w = None):
-	topLayerZ = 0
-	tempFieldDir = "tmpField/"
-	tempFieldFname = tempFieldDir+"fieldTemp.grd"
-	layers = len(files(modelDir, '.grd'))
-	params = (lambda isTrans, gpu = 1:
-		[tempFieldDir, "0", str(-layers+1+topLayerZ), "1", "*", "*", str(gpu), resultDir+"\\f", "invField", str(layers)]
-		if isTrans else 
-		[modelDir, "0", str(-layers+1+topLayerZ), "1", tempFieldFname, "*", str(gpu), "*", "invField"])
-
-	#prepare dirs
-	try:
-		os.mkdir(tempFieldDir)
-	except OSError:
-		None		
-	rmtree(path+resultDir, ignore_errors = True)
-	try:
-		os.mkdir(path+resultDir)
-	except OSError:
-		None
-
-	#fwd
-	runFlatSolver(path, params(False))
-	#trans
-	runFlatSolver(path, params(True))
-	#FFtx + gm*x
-	sumGridsInDirWeighted(path+resultDir, path+modelDir, w)
-
-def test():
-	path = "X:\\elFieldCU_GKed_het_91_df_hex_2phase_fix_pool\\x64\\minRefine_TimanHD_ds_flat\\"
-	x = "inc_model"
-	#Aop test
-	AresDir = "Aop"
-	Aop(path, x, AresDir, 100)
-
-#test()
-#sumGridsInDir("model0ds", "gm=100-600_e=0.00228838_me=0.0331472_it=36")
+	SolveTrans(path, outFwdFieldGrd, resultDir, topoGrd, l0, pprr)
+	# A(A^T(x)) + wb
+	sumGridsInDir(os.path.join(path, resultDir), os.path.join(path, modelDir), layerWeights)
