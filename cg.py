@@ -54,8 +54,8 @@ class Solver(object):
 		)
 
 		#top layer spec. gamma weights (based on the height map)
-		g_spec_top_layer_map = lambda x: (1.4 - (0 if x >= Grid.BlankValue else x))**4*20000 + 50
-		self.gammaWeights[len(self.gammaWeights) - 1] = np.array([g_spec_top_layer_map(v) for v in Grid().read_grd7(self.pathOf(self.topoGrd)).data])
+		# g_spec_top_layer_map = lambda x: (1.4 - (0 if x >= Grid.BlankValue else x))**4*20000 + 50
+		# self.gammaWeights[len(self.gammaWeights) - 1] = np.array([g_spec_top_layer_map(v) for v in Grid().read_grd7(self.pathOf(self.topoGrd)).data])
 
 		#process dirs
 		self.zDir = "zDir"	#z_k-1
@@ -84,27 +84,12 @@ class Solver(object):
 		self.error = math.sqrt(self.dotGridsDir(self.rDir, self.rDir)) / self.normRight
 		return self.error
 
-	def lfun1(self, z, x):
+	def lfun1(self, z: npt.NDArray, x: npt.NDArray):
 		for i in range(0, x.shape[0]):
 			if abs(x[i]) >= self.brd and x[i]*z[i] > 0:
 				self.constrVlCnt += 1
 				z[i] = 0.
 		return z
-
-	def lfun2(self, z, x):
-		for i in range(0, z.shape[0]):
-			if z[i] > 0.0:
-				tmpd = self.brd - x[i]
-				if tmpd >= 1e-6:
-					lt = tmpd/z[i]
-					if self.alpha > lt:
-						self.alpha = lt
-			elif z[i] < 0.0:
-				tmpd = -self.brd - x[i]
-				if tmpd < 1e-6:
-					lt = tmpd/z[i]
-					if self.alpha > lt:
-						self.alpha = lt
 
 	def iterate(self):
 		if self.iter == 0:
@@ -221,10 +206,10 @@ def attempt(path: str, ref_field_grd: str, topoGrd: str, l0: float, pprr: float,
 		print("--- "+info)
 		flog.write(info+"\r\n")
 		
-		if err < 0.1 and not gammaDecreased:
-			for g in cg.gammaWeights: g *= 0.5
-			gammaDecreased = True
-			flog.write("Gamma decreased\r\n")
+		# if err < 0.25 and not gammaDecreased:
+		# 	for g in cg.gammaWeights: g *= 0.5
+		# 	gammaDecreased = True
+		# 	flog.write("Gamma decreased\r\n")
 			
 		flog.flush()
 

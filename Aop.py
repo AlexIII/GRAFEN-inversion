@@ -6,14 +6,11 @@
 
 from typing import *
 import subprocess
-from shutil import copyfile
-from shutil import copytree
-from shutil import rmtree
+from shutil import copytree, rmtree
 from pygrid import Grid
 import sys, os
 import numpy as np
 import numpy.typing as npt
-from typing import *
 
 dStream = sys.stdout
 
@@ -130,14 +127,14 @@ def dotGridsInDir(dir1: str, dir2: str) -> float:
 def SolveFwd(path: str, fieldFname: str, modelDir: str, topoGrd: Optional[str] = None, l0: float = 60, pprr: float = 100):	# pprr - Point Potential Replace Radius
 	layers = len(files(os.path.join(path, modelDir), '.grd')) - (1 if topoGrd is not None else 0)
 	runSphSolver(path, 
-		["-grd7", fieldFname, "-Hf", "0.00001", "-Hfrom", str(-layers), "-Hto", "0", "-Hn", str(layers), "-l0", str(l0), "-dens", modelDir, "-DPR", str(pprr), "-toRel"] + 
+		["-grd7", fieldFname, "-Hf", "0.00001", "-Hfrom", str(-layers), "-Hto", "0", "-Hn", str(layers), "-l0", str(l0), "-dens", modelDir, "-DPR", str(pprr)] + 
 		(["-fieldOnTopo", "-topoHeightGrd7", topoGrd] if topoGrd is not None else [])
 	)
 
 def SolveTrans(path: str, fieldFname: str, modelDir: str, topoGrd: Optional[str] = None, l0: float = 60, pprr: float = 100):	# pprr - Point Potential Replace Radius
 	layers = len(files(os.path.join(path, modelDir), '.grd')) - (1 if topoGrd is not None else 0)
 	runSphSolver(path,
-		["-grd7", fieldFname, "-Hf", "0.00001", "-Hfrom", str(-layers), "-Hto", "0", "-Hn", str(layers), "-l0", str(l0), "-dens", modelDir, "-DPR", str(pprr), "-toRel", "-transposeSolver"] + 
+		["-grd7", fieldFname, "-Hf", "0.00001", "-Hfrom", str(-layers), "-Hto", "0", "-Hn", str(layers), "-l0", str(l0), "-dens", modelDir, "-DPR", str(pprr), "-transposeSolver"] + 
 		(["-fieldOnTopo", "-topoHeightGrd7", topoGrd] if topoGrd is not None else [])
 	)
 
@@ -151,3 +148,4 @@ def Aop(path: str, outFwdFieldGrd: str, modelDir: str, topoGrd: str, resultDir: 
 	SolveTrans(path, outFwdFieldGrd, resultDir, topoGrd, l0, pprr)
 	# A(A^T(x)) + wb
 	sumGridsInDir(os.path.join(path, resultDir), os.path.join(path, modelDir), layerWeights)
+	

@@ -8,3 +8,4 @@ zDir
 v_rightSide
 cg_log.txt
 *.grd
+*workload/
