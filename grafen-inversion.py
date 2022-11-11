@@ -79,7 +79,8 @@ if config.mode == 'init':
     exit(0)
 elif config.mode == 'solve' or config.mode == 'continue':
     print("Starting solver")
-    gamma = np.interp(range(config.n_layers + 1), [0, config.n_layers + 1], [0.1, 10]).tolist()
+    # gamma = np.interp(range(config.n_layers + 1), [0, config.n_layers + 1], [1, 100]).tolist()
+    gamma = np.interp(range(config.n_layers + 1), [0, config.n_layers * 0.8 , config.n_layers + 1], [1, 50, 200]).tolist()
 
     cg.attempt(
         config.workload_path, config.target_field_grd, config.topo_hieghtmap_grd,
