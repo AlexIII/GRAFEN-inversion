@@ -6,8 +6,6 @@ from typing import Literal
 import Aop, cg
 import numpy as np
 
-PRECISE_INIT = False
-
 @dataclass
 class Config:
     l0: float
@@ -69,7 +67,7 @@ def solverInit(config: Config):
         shutil.copyfile(target_field_path, os.path.join(modelMeshDir_path, f"layer_{l:04d}.grd"))
     shutil.copyfile(target_field_path, os.path.join(modelMeshDir_path, f"zzz_topo_dens.grd"))
     # Compute values for v_rightSide
-    Aop.SolveTrans(config.workload_path, config.target_field_grd, config.modelMeshBaseDir, config.topo_hieghtmap_grd, config.l0, -1 if PRECISE_INIT else config.pprr)
+    Aop.SolveTrans(config.workload_path, config.target_field_grd, config.modelMeshBaseDir, config.topo_hieghtmap_grd, config.l0, config.pprr)
 
 config = parseInput()
 
@@ -79,8 +77,8 @@ if config.mode == 'init':
     exit(0)
 elif config.mode == 'solve' or config.mode == 'continue':
     print("Starting solver")
-    # gamma = np.interp(range(config.n_layers + 1), [0, config.n_layers + 1], [1, 100]).tolist()
-    gamma = np.interp(range(config.n_layers + 1), [0, config.n_layers * 0.8 , config.n_layers + 1], [1, 50, 200]).tolist()
+    gamma = np.interp(range(config.n_layers + 1), [0, config.n_layers + 1], [1, 100]).tolist()
+    # gamma = np.interp(range(config.n_layers + 1), [0, config.n_layers * 0.8 , config.n_layers + 1], [1, 50, 200]).tolist()
 
     cg.attempt(
         config.workload_path, config.target_field_grd, config.topo_hieghtmap_grd,

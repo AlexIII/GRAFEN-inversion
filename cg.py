@@ -218,7 +218,7 @@ def searchGamma():
 
 
 def sum_res():
-	inc_model = "./postprocess-workload/filt_gm=1-97.0588_e=0.0028784_me=0.0336091_it=39"
+	inc_model = "./postprocess-workload/gm=1-98.7778_e=0.000991535_me=0.0405617_it=43"
 	base_model = "./postprocess-workload/model0_rffi2022"
 	sum_model = "./postprocess-workload/model0_result_sum_rffi2022"
 	rmtree(sum_model, ignore_errors = True)
